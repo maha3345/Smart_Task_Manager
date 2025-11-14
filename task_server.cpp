@@ -159,3 +159,126 @@ public:
         rebuildHeap();
         return "{\"success\":true,\"message\":\"Task marked as completed\"}";
     }
+    string sortByDeadline() {
+        vector<Task*> temp = allTasks;
+        sort(temp.begin(), temp.end(), [](Task* a, Task* b) {
+            return a->deadline < b->deadline;
+        });
+        stringstream ss;
+        ss << "{\"success\":true,\"tasks\":[";
+        for (size_t i = 0; i < temp.size(); i++) {
+            ss << temp[i]->toJSON();
+            if (i < temp.size() - 1) ss << ",";
+        }
+        ss << "]}";
+        return ss.str();
+    }string sortByDeadline() {
+        vector<Task*> temp = allTasks;
+        sort(temp.begin(), temp.end(), [](Task* a, Task* b) {
+            return a->deadline < b->deadline;
+        });
+        stringstream ss;
+        ss << "{\"success\":true,\"tasks\":[";
+        for (size_t i = 0; i < temp.size(); i++) {
+            ss << temp[i]->toJSON();
+            if (i < temp.size() - 1) ss << ",";
+        }
+        ss << "]}";
+        return ss.str();
+    }string sortByDuration() {
+        vector<Task*> temp = allTasks;
+        sort(temp.begin(), temp.end(), [](Task* a, Task* b) {
+            return a->duration < b->duration;
+        });
+        stringstream ss;
+        ss << "{\"success\":true,\"tasks\":[";
+        for (size_t i = 0; i < temp.size(); i++) {
+            ss << temp[i]->toJSON();
+            if (i < temp.size() - 1) ss << ",";
+        }
+        ss << "]}";
+        return ss.str();
+    }string undoOperation() {
+        if (undoStack.empty()) {
+            return "{\"success\":false,\"message\":\"Nothing to undo\"}";
+        }
+        auto operation = undoStack.top();
+        undoStack.pop();
+        if (operation.first == "ADD") {
+            Task* t = operation.second;
+            taskMap.erase(t->id);
+            for (int i = 0; i < (int)allTasks.size(); i++) {
+                if (allTasks[i]->id == t->id) {
+                    allTasks.erase(allTasks.begin() + i);
+                    break;
+                }
+            }
+            rebuildHeap();
+            redoStack.push(operation);
+            return "{\"success\":true,\"message\":\"Undone: Task addition reverted\"}";
+        } else if (operation.first == "DELETE") {
+            Task* t = operation.second;
+            taskMap[t->id] = t;
+            allTasks.push_back(t);
+            rebuildHeap();
+            redoStack.push(operation);
+            return "{\"success\":true,\"message\":\"Undone: Task restored\"}";
+        }
+        return "{\"success\":false,\"message\":\"Unknown operation\"}";
+    }string redoOperation() {
+        if (redoStack.empty()) {
+            return "{\"success\":false,\"message\":\"Nothing to redo\"}";
+        }
+        auto operation = redoStack.top();
+        redoStack.pop();
+        if (operation.first == "ADD") {
+            Task* t = operation.second;
+            taskMap[t->id] = t;
+            allTasks.push_back(t);
+            rebuildHeap();
+            undoStack.push(operation);
+            return "{\"success\":true,\"message\":\"Redone: Task added back\"}";
+        } else if (operation.first == "DELETE") {
+            Task* t = operation.second;
+            taskMap.erase(t->id);
+            for (int i = 0; i < (int)allTasks.size(); i++) {
+                if (allTasks[i]->id == t->id) {
+                    allTasks.erase(allTasks.begin() + i);
+                    break;
+                }
+            }
+            rebuildHeap();
+            undoStack.push(operation);
+            return "{\"success\":true,\"message\":\"Redone: Task deleted again\"}";
+        }
+        return "{\"success\":false,\"message\":\"Unknown operation\"}";
+    }string processRecurringTasks() {
+        int size = (int)recurringQueue.size();
+        time_t currentTime = time(0);
+        int generated = 0;
+        for (int i = 0; i < size; i++) {
+            Task* t = recurringQueue.front();
+            recurringQueue.pop();
+
+            if (t->isRecurring) {
+                if (t->completed || t->deadline < currentTime) {
+                    time_t newDeadline = t->deadline;
+                    if (t->recurringDays <= 0) {
+                    } else {
+                        while (newDeadline <= currentTime) {
+                            newDeadline += (time_t)t->recurringDays * 86400;
+                        }
+                        addTask(t->name, t->description, t->priority, newDeadline,
+                                t->duration, true, t->recurringDays);
+                        generated++;
+                    }
+                }
+            }
+            recurringQueue.push(t);
+        }
+        if (generated > 0) {
+            return "{\"success\":true,\"message\":\"Generated " + to_string(generated) + " recurring task(s)\"}";
+        }
+        return "{\"success\":true,\"message\":\"No recurring tasks to generate\"}";
+    }
+    hi
