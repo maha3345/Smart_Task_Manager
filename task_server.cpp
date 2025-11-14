@@ -1,88 +1,69 @@
-#include <iostream>
-#include <vector>
-#include <unordered_map>
-#include <queue>
-#include <stack>
-#include <string>
-#include <algorithm>
-#include <ctime>
-#include <iomanip>
-#include <sstream>
-#include <limits>
-#include <fstream>
-#include <cstring>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-
-#pragma comment(lib, "ws2_32.lib")
-
-using namespace std;
-
-struct Task {
-    int id;
-    string name;
-    string description;
-    int priority;
-    time_t deadline;
-    int duration;
-    bool isRecurring;
-    int recurringDays;
-    bool completed;
-    time_t createdAt;
-
-    Task(int _id, string _name, string _desc, int _priority, time_t _deadline,
-         int _duration, bool _isRecurring = false, int _recurringDays = 0) {
-        id = _id;
-        name = _name;
-        description = _desc;
-        priority = _priority;
-        deadline = _deadline;
-        duration = _duration;
-        isRecurring = _isRecurring;
-        recurringDays = _recurringDays;
-        completed = false;
-        createdAt = time(0);
+string getAllTasksJSON() {
+        stringstream ss;
+        ss << "{\"success\":true,\"tasks\":[";
+        for (size_t i = 0; i < allTasks.size(); i++) {
+            ss << allTasks[i]->toJSON();
+            if (i < allTasks.size() - 1) ss << ",";
+        }
+        ss << "]}";
+        return ss.str();
     }
-};
-private:
- string escapeJSON(const string& s) const {
-        string result;
-        for (char c : s) {
-            switch (c) {
-                case '"': result += "\\\""; break;
-                case '\\': result += "\\\\"; break;
-                case '\n': result += "\\n"; break;
-                case '\r': result += "\\r"; break;
-                case '\t': result += "\\t"; break;
-                default: result += c;
+    string getPendingTasksJSON() {
+        vector<Task*> pending;
+        for (Task* t : allTasks) {
+            if (!t->completed) pending.push_back(t);
+        }
+        stringstream ss;
+        ss << "{\"success\":true,\"tasks\":[";
+        for (size_t i = 0; i < pending.size(); i++) {
+            ss << pending[i]->toJSON();
+            if (i < pending.size() - 1) ss << ",";
+        }
+        ss << "]}";
+        return ss.str();
+    }
+    string getTopTaskJSON() {
+        if (taskHeap.empty()) {
+            return "{\"success\":false,\"message\":\"No pending tasks\"}";
+        }
+        Task* top = taskHeap.top();
+        return "{\"success\":true,\"task\":" + top->toJSON() + "}";
+    }
+    string getStatisticsJSON() {
+        int total = allTasks.size();
+        int completed = 0, pending = 0, overdue = 0;
+        time_t now = time(0);
+        for (Task* t : allTasks) {
+            if (t->completed) {
+                completed++;
+            } else {
+                pending++;
+                if (t->deadline < now) overdue++;
             }
         }
-        return result;
-    }
-
-public:
-    string toJSON() const {
+        double completionRate = total > 0 ? (completed * 100.0) / total : 0;
         stringstream ss;
-        ss << "{";
-        ss << "\"id\":" << id << ",";
-        ss << "\"name\":\"" << escapeJSON(name) << "\",";
-        ss << "\"description\":\"" << escapeJSON(description) << "\",";
-        ss << "\"priority\":" << priority << ",";
-        ss << "\"deadline\":" << deadline << ",";
-        ss << "\"duration\":" << duration << ",";
-        ss << "\"isRecurring\":" << (isRecurring ? "true" : "false") << ",";
-        ss << "\"recurringDays\":" << recurringDays << ",";
-        ss << "\"completed\":" << (completed ? "true" : "false") << ",";
-        ss << "\"createdAt\":" << createdAt;
+        ss << "{\"success\":true,";
+        ss << "\"total\":" << total << ",";
+        ss << "\"completed\":" << completed << ",";
+        ss << "\"pending\":" << pending << ",";
+        ss << "\"overdue\":" << overdue << ",";
+        ss << "\"completionRate\":" << fixed << setprecision(1) << completionRate;
         ss << "}";
         return ss.str();
     }
-
-struct ComparePriority {
-    bool operator()(Task* t1, Task* t2) {
-        if (t1->priority == t2->priority) {
-            return t1->deadline > t2->deadline;
+    string sortByPriority() {
+        vector<Task*> temp = allTasks;
+        sort(temp.begin(), temp.end(), [](Task* a, Task* b) {
+            return a->priority < b->priority;
+        });
+        stringstream ss;
+        ss << "{\"success\":true,\"tasks\":[";
+        for (size_t i = 0; i < temp.size(); i++) {
+            ss << temp[i]->toJSON();
+            if (i < temp.size() - 1) ss << ",";
         }
+<<<<<<< HEAD
         return t1->priority > t2->priority;
     }
 };
@@ -281,4 +262,3 @@ public:
         }
         return "{\"success\":true,\"message\":\"No recurring tasks to generate\"}";
     }
-    hi
